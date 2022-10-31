@@ -30,7 +30,7 @@ class SurveyQuestion(models.Model):
         verbose_name_plural = 'вопросы'
 
     def __str__(self):
-        return str(self.survey) + '_' + str(self.id)
+        return str(self.question_text) + '_' + str(self.QUESTION_TYPE_CHOICES[int(self.question_type)][1])
 
 
 class QuestionChoice(models.Model):
