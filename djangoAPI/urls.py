@@ -20,5 +20,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/auth/', include('rest_framework.urls')),
     path('api/v1/app_survey/', include('app_survey.urls')),
+    path('__debug__/', include('debug_toolbar.urls')),
 
 ]

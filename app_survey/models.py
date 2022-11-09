@@ -3,8 +3,8 @@ from django.db import models
 
 class Survey(models.Model):
     name = models.CharField(max_length=256, verbose_name='название опроса')
-    start_date = models.DateTimeField(verbose_name='дата старта опроса')
-    end_date = models.DateTimeField(verbose_name='дата окончания опроса')
+    start_date = models.DateTimeField(db_index=True, verbose_name='дата старта опроса')
+    end_date = models.DateTimeField(db_index=True, verbose_name='дата окончания опроса')
     description = models.TextField(max_length=2500, verbose_name='описание опроса')
 
     class Meta:
