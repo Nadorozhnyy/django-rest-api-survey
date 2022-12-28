@@ -2,124 +2,163 @@ from django.utils import timezone
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.generics import GenericAPIView
-from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, \
-    DestroyModelMixin
-from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import mixins
 
-from .models import Survey, SurveyQuestion, QuestionChoice
-from .serializers import SurveySerializer, SurveyQuestionSerializer, QuestionChoiceSerializer
+from .models import Survey, SurveyQuestion, QuestionChoice, Answer
+from .serializers import SurveySerializer, SurveyQuestionSerializer, QuestionChoiceSerializer, AnswerSerializer, \
+    PassedSurveySerializer
 from .permissions import IsAdminOrReadOnly
 
 
-class SurveyViewSet(viewsets.ModelViewSet):
-    queryset = Survey.objects.get_queryset().order_by('id')
-    serializer_class = SurveySerializer
-    permission_classes = (IsAdminOrReadOnly,)
+class ObjectViewSet(viewsets.ModelViewSet):
+    url_path = None
+    url_name = None
+    model = None
+    model_serializer = None
 
-    @action(methods=['get'], detail=True, permission_classes=[IsAdminOrReadOnly], url_path='questions',
-            url_name='questions')
-    def questions(self, request, pk=None):
+    def get_queryset_with_filter(self):
+        pass
+
+    @staticmethod
+    def check_date(request, instance):
+        pass
+
+    def get_instance_objects(self, pk):
+        pass
+
+    def action_object(self, request, pk=None):
         instance = self.get_object()
-        today = timezone.now()
-        if not instance.start_date <= today <= instance.end_date and not request.user.is_staff:
-            raise AuthenticationFailed(detail={'message': 'questions list not available'})
-        questions = SurveyQuestion.objects.filter(survey=pk)
-        serializer = SurveyQuestionSerializer(questions, many=True)
+        self.check_date(request, instance)
+        questions = self.get_instance_objects(pk)
+        serializer = self.model_serializer(questions, many=True)
         return Response(serializer.data)
 
     def list(self, request, *args, **kwargs):
-        #TODO рефактор фильтра
         if request.user.is_staff:
             queryset = self.filter_queryset(self.get_queryset())
         else:
-            today = timezone.now()
-            queryset = self.filter_queryset(self.get_queryset()).filter(end_date__gte=today).filter(
-                start_date__lte=today)
+            queryset = self.get_queryset_with_filter()
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        today = timezone.now()
-        if not instance.start_date <= today <= instance.end_date and not request.user.is_staff:
-            raise AuthenticationFailed(detail={'message': 'survey not available'})
+        self.check_date(request, instance)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
 
-class SurveyQuestionViewSet(viewsets.ModelViewSet):
+class SurveyViewSet(ObjectViewSet):
+    queryset = Survey.objects.get_queryset().order_by('id')
+    serializer_class = SurveySerializer
+    permission_classes = (IsAdminOrReadOnly, IsAuthenticated,)
+
+    url_path = 'questions'
+    url_name = 'questions'
+    model = SurveyQuestion
+    model_serializer = SurveyQuestionSerializer
+
+    def get_queryset_with_filter(self):
+        today = timezone.now()
+        return self.filter_queryset(self.get_queryset()).filter(end_date__gte=today).filter(
+                start_date__lte=today)
+
+    @staticmethod
+    def check_date(request, instance):
+        today = timezone.now()
+        if not instance.start_date <= today <= instance.end_date and not request.user.is_staff:
+            raise AuthenticationFailed(detail={'message': 'object not available'})
+
+    def get_instance_objects(self, pk):
+        return self.model.objects.filter(survey=pk)
+
+    @action(methods=['get'], detail=True, permission_classes=[IsAdminOrReadOnly, IsAuthenticated], url_path=url_path,
+            url_name=url_name)
+    def action_object(self, request, pk=None):
+        return super().action_object(request, pk)
+
+
+class SurveyQuestionViewSet(ObjectViewSet):
     queryset = SurveyQuestion.objects.get_queryset().order_by('id')
     serializer_class = SurveyQuestionSerializer
-    permission_classes = (IsAdminOrReadOnly,)
+    permission_classes = (IsAdminOrReadOnly, IsAuthenticated,)
 
-    @action(methods=['get'], detail=True, permission_classes=[IsAdminOrReadOnly], url_path='choices',
-            url_name='choices')
-    def choices(self, request, pk=None):
-        instance = self.get_object()
+    url_path = 'choices'
+    url_name = 'choices'
+    model = QuestionChoice
+    model_serializer = QuestionChoiceSerializer
+
+    def get_queryset_with_filter(self):
         today = timezone.now()
-        if not instance.survey.start_date <= today <= instance.survey.end_date and not request.user.is_staff:
-            raise AuthenticationFailed(detail={'message': 'choices list not available'})
-        choices = QuestionChoice.objects.filter(question=pk)
-        serializer = QuestionChoiceSerializer(choices, many=True)
-        return Response(serializer.data)
+        return self.filter_queryset(self.get_queryset()).filter(survey__end_date__gte=today).filter(
+            survey__start_date__lte=today)
 
-    def list(self, request, *args, **kwargs):
-        if request.user.is_staff:
-            queryset = self.filter_queryset(self.get_queryset())
-        else:
-            today = timezone.now()
-            queryset = self.filter_queryset(self.get_queryset()).filter(survey__end_date__gte=today).filter(
-                survey__start_date__lte=today)
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
+    @staticmethod
+    def check_date(request, instance):
         today = timezone.now()
         if not instance.survey.start_date <= today <= instance.survey.end_date and not request.user.is_staff:
             raise AuthenticationFailed(detail={'message': 'question not available'})
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+
+    def get_instance_objects(self, pk):
+        return self.model.objects.filter(question=pk)
+
+    @action(methods=['get'], detail=True, permission_classes=[IsAdminOrReadOnly, IsAuthenticated], url_path=url_path,
+            url_name=url_name)
+    def action_object(self, request, pk=None):
+        return super().action_object(request, pk)
 
 
-class QuestionChoiceViewSet(viewsets.ModelViewSet):
+class QuestionChoiceViewSet(ObjectViewSet):
     queryset = QuestionChoice.objects.get_queryset().order_by('id')
     serializer_class = QuestionChoiceSerializer
-    permission_classes = (IsAdminOrReadOnly,)
+    permission_classes = (IsAdminOrReadOnly, IsAuthenticated,)
 
-    def list(self, request, *args, **kwargs):
-        if request.user.is_staff:
-            queryset = self.filter_queryset(self.get_queryset())
-        else:
-            today = timezone.now()
-            queryset = self.filter_queryset(self.get_queryset()).filter(question__survey__end_date__gte=today).filter(
+    def get_queryset_with_filter(self):
+        today = timezone.now()
+        return self.filter_queryset(self.get_queryset()).filter(question__survey__end_date__gte=today).filter(
                 question__survey__start_date__lte=today)
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
+    @staticmethod
+    def check_date(request, instance):
         today = timezone.now()
         if not instance.question.survey.start_date <= today <= instance.question.survey.end_date \
                 and not request.user.is_staff:
             raise AuthenticationFailed(detail={'message': 'choices not available'})
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+
+
+class AnswerViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    queryset = Answer.objects.all()
+    serializer_class = AnswerSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def perform_create(self, serializer):
+        survey = serializer.validated_data['question'].survey
+        user_id = self.request.user.id
+        serializer.save(user_id=user_id, survey=survey)
+
+
+class PassedSurveyViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    queryset = Survey.objects.all()
+    serializer_class = PassedSurveySerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            user_id = self.request.query_params.get('user_id')
+            if user_id is not None:
+                choices = Answer.objects.filter(user_id=user_id)
+            else:
+                choices = Answer.objects.all()
+        else:
+            choices = Answer.objects.filter(user_id=self.request.user.id)
+        passed_survey = set(choices.values_list('survey_id', flat=True))
+        return Survey.objects.filter(pk__in=passed_survey)
+
+
