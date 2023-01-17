@@ -14,26 +14,49 @@ from .permissions import IsAdminOrReadOnly
 
 
 class ObjectViewSet(viewsets.ModelViewSet):
+    """
+    Base class for Survey, Question and Question choices
+    """
     url_path = None
     url_name = None
     model = None
     model_serializer = None
 
     def get_queryset_with_filter(self):
+        """
+        Filtered queryset for not staff user (showing actual survey and questions)
+        :return: QuerySet
+        """
         pass
 
     @staticmethod
     def check_date(request, instance):
+        """
+        Raise AuthenticationFailed if date not actual for users
+        :param request: request
+        :param instance: models.Survey
+        """
         pass
 
     def get_instance_objects(self, pk):
+        """
+        Pk instance of relevant object
+        :param pk: int
+        :return: Queryset
+        """
         pass
 
     def action_object(self, request, pk=None):
+        """
+        Action to view object with detail
+        :param request: request
+        :param pk: int
+        :return: Response
+        """
         instance = self.get_object()
         self.check_date(request, instance)
-        questions = self.get_instance_objects(pk)
-        serializer = self.model_serializer(questions, many=True)
+        instance_object = self.get_instance_objects(pk)
+        serializer = self.model_serializer(instance_object, many=True)
         return Response(serializer.data)
 
     def list(self, request, *args, **kwargs):
@@ -56,7 +79,7 @@ class ObjectViewSet(viewsets.ModelViewSet):
 
 
 class SurveyViewSet(ObjectViewSet):
-    queryset = Survey.objects.get_queryset().order_by('id')
+    queryset = Survey.objects.order_by('id')
     serializer_class = SurveySerializer
     permission_classes = (IsAdminOrReadOnly, IsAuthenticated,)
 
@@ -86,7 +109,7 @@ class SurveyViewSet(ObjectViewSet):
 
 
 class SurveyQuestionViewSet(ObjectViewSet):
-    queryset = SurveyQuestion.objects.get_queryset().order_by('id')
+    queryset = SurveyQuestion.objects.order_by('id')
     serializer_class = SurveyQuestionSerializer
     permission_classes = (IsAdminOrReadOnly, IsAuthenticated,)
 
@@ -116,7 +139,7 @@ class SurveyQuestionViewSet(ObjectViewSet):
 
 
 class QuestionChoiceViewSet(ObjectViewSet):
-    queryset = QuestionChoice.objects.get_queryset().order_by('id')
+    queryset = QuestionChoice.objects.order_by('id')
     serializer_class = QuestionChoiceSerializer
     permission_classes = (IsAdminOrReadOnly, IsAuthenticated,)
 

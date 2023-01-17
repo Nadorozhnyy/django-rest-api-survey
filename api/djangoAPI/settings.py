@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_yasg',
     'app_survey',
     'debug_toolbar',
 ]
@@ -58,7 +59,7 @@ ROOT_URLCONF = 'djangoAPI.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
+        'DIRS': [BASE_DIR / 'survey/templates']
         ,
         'APP_DIRS': True,
         'OPTIONS': {

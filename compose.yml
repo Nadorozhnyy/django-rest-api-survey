@@ -1,0 +1,7 @@
+services:
+  web:
+    build:
+      context: api
+      target: builder
+    ports:
+      - '8000:8000'

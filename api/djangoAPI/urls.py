@@ -16,10 +16,25 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from drf_yasg.views import get_schema_view as swagger_get_schema_view
+from drf_yasg import openapi
+
+schema_view = swagger_get_schema_view(
+    openapi.Info(
+        title="Snippets API",
+        default_version='v1',
+        description="Test description",
+    ),
+    public=True,
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/auth/', include('rest_framework.urls')),
-    path('api/v1/app_survey/', include('app_survey.urls')),
+    path('survey/v1/', include([
+        path('auth/', include('rest_framework.urls')),
+        path('app_survey/', include('app_survey.urls')),
+    ])),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger'),
     path('__debug__/', include('debug_toolbar.urls')),
 
 ]
