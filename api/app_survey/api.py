@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 from django.utils import timezone
 
 from rest_framework import viewsets
@@ -22,6 +24,7 @@ class ObjectViewSet(viewsets.ModelViewSet):
     model = None
     model_serializer = None
 
+    @abstractmethod
     def get_queryset_with_filter(self):
         """
         Filtered queryset for not staff user (showing actual survey and questions)
@@ -30,6 +33,7 @@ class ObjectViewSet(viewsets.ModelViewSet):
         pass
 
     @staticmethod
+    @abstractmethod
     def check_date(request, instance):
         """
         Raise AuthenticationFailed if date not actual for users
